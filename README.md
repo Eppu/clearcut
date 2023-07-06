@@ -2,6 +2,15 @@
 
 ## Another image background removal app.
 
+### Getting started
+
+```bash
+git clone https://github.com/Eppu/clearcut.git
+cd clearcut
+npm install
+npm run dev
+```
+
 Built with
 
 - React
