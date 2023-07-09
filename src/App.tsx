@@ -16,8 +16,6 @@ import {
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
-let image_src: ImageData | ArrayBuffer | Uint8Array | Blob | URL | string = '';
-console.log('image_src', image_src);
 // extend File interface with preview
 interface ExtendedFile extends File {
   preview: string;
@@ -25,12 +23,11 @@ interface ExtendedFile extends File {
 
 function App() {
   const [files, setFiles] = useState<ExtendedFile[]>([]);
-  // const [readyImage, setImage] = useState<ImageData | ArrayBuffer | Uint8Array | Blob | URL | string>('');
-  const [readyImage, setImage] = useState<URL | string>('');
+  const [readyImage, setImage] = useState<string>('');
 
-  const onDrop = useCallback((acceptedFiles: ImageSource[]) => {
+  const removeBackground = (acceptedFiles: ImageSource[]) => {
     console.log('acceptedFiles', acceptedFiles);
-    console.log('Runnig imglyRemoveBackground...');
+    console.log('Running imglyRemoveBackground...');
     // run imglyRemoveBackground. after the background has been removed, return the result
     imglyRemoveBackground(acceptedFiles[0])
       .then((blob: Blob) => {
@@ -38,70 +35,111 @@ function App() {
         console.log('got blob', blob);
         const url = URL.createObjectURL(blob);
         console.log('url is', url);
-        image_src = url;
         setImage(url);
         return url;
       })
       .catch((error: any) => {
         console.log('error', error);
       });
-  }, []);
+  };
+
+  const handleDownload = () => {
+    // Create a temporary link element
+    const link = document.createElement('a');
+    link.href = readyImage;
+    link.download = files[0].name.split('.')[0] + '_clearcut.png';
+    link.click();
+  };
 
   const { getRootProps, getInputProps } = useDropzone({
     accept: { 'image/*': [] },
-    onDrop,
+    // onDrop,
+    onDrop: (acceptedFiles) => {
+      setFiles(
+        acceptedFiles.map((file) =>
+          Object.assign(file, {
+            preview: URL.createObjectURL(file),
+          })
+        )
+      );
+    },
   });
 
-  // const thumbs = readyImage.map((readyImage) => (
-  //   <div>
-  //     <div>
-  //       <img src={readyImage} />
-  //     </div>
-  //   </div>
-  // ));
+  const thumbs = files.map((file) => (
+    <div key={file.name}>
+      <div>
+        <img
+          src={file.preview}
+          // Revoke data uri after image is loaded
+          onLoad={() => {
+            URL.revokeObjectURL(file.preview);
+          }}
+        />
+      </div>
+    </div>
+  ));
 
-  // useEffect(() => {
-  //   // Make sure to revoke the data uris to avoid memory leaks
-  //   files.forEach((file) => URL.revokeObjectURL(file.preview));
-  // }, [files]);
+  useEffect(() => {
+    // Make sure to revoke the data uris to avoid memory leaks, will run on unmount
+    return () => files.forEach((file) => URL.revokeObjectURL(file.preview));
+  }, [files]);
 
   return (
-    <section className="border border-dashed border-gray-500 relative">
-      <div className="text-center p-10  m-auto cursor-pointer">
-        <div {...getRootProps({ className: 'dropzone' })}>
-          <input {...getInputProps()} />
-          <p>Drag 'n' drop some files here, or click to select files</p>
+    <>
+      <header className="bg-white">
+        <div className="container mx-auto px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="hidden w-full text-gray-600 md:flex md:items-center">
+              <div className="text-gray-700 md:text-center text-2xl font-semibold">ClearCut</div>
+            </div>
+            <div className="flex items-center justify-end w-full">An in-browser AI background removal tool.</div>
+          </div>
         </div>
-      </div>
-      {/* <aside>{thumbs}</aside> */}
-      {readyImage && (
-        <aside>
-          <img src={readyImage as string} alt="Rendered Image" />
-        </aside>
-      )}
-    </section>
+      </header>
+
+      <main className="my-8">
+        <>
+          <div className="container mx-auto">
+            <section className="border border-dashed border-gray-500 relative rounded-md">
+              {/* <section className="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm"> */}
+              <div className="text-center p-10  m-auto cursor-pointer">
+                <div {...getRootProps({ className: 'dropzone' })}>
+                  <input {...getInputProps()} />
+                  <p>Drag 'n' drop some files here, or click to select files</p>
+                </div>
+              </div>
+            </section>
+            {thumbs}
+            {readyImage && (
+              <Card>
+                <aside>
+                  <img src={readyImage} alt="Rendered Image" />
+                </aside>
+              </Card>
+            )}
+          </div>
+        </>
+        <Button
+          variant={'outline'}
+          onClick={() => {
+            removeBackground(files);
+          }}
+        >
+          Remove background
+        </Button>
+        {readyImage && (
+          <Button
+            variant={'outline'}
+            onClick={() => {
+              handleDownload();
+            }}
+          >
+            Download
+          </Button>
+        )}
+      </main>
+    </>
   );
-
-  // return (
-  //   <>
-  //     <header className="bg-white">
-  //       <div className="container mx-auto px-6 py-3">
-  //         <div className="flex items-center justify-between">
-  //           <div className="hidden w-full text-gray-600 md:flex md:items-center">
-  //             <div className="text-gray-700 md:text-center text-2xl font-semibold">ClearCut</div>
-  //           </div>
-  //           <div className="flex items-center justify-end w-full">jeejee</div>
-  //         </div>
-  //       </div>
-  //     </header>
-
-  //     <main className="my-8">
-  //       asdasdasdasdasd
-  //       <div className="container mx-auto">wasdasdasdasdasd</div>
-  //       <Button variant={'outline'}>Remove background</Button>
-  //     </main>
-  //   </>
-  // );
 }
 
 export default App;
