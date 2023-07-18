@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import './App.css';
-import imglyRemoveBackground, { ImageSource } from '@imgly/background-removal';
+import imglyRemoveBackground, { ImageSource, Config } from '@imgly/background-removal';
 import { Button } from '@/components/ui/button';
 import {
   NavigationMenu,
@@ -16,6 +16,11 @@ import {
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+import { Download } from 'lucide-react';
+import React from 'react';
+
 // extend File interface with preview
 interface ExtendedFile extends File {
   preview: string;
@@ -24,22 +29,44 @@ interface ExtendedFile extends File {
 function App() {
   const [files, setFiles] = useState<ExtendedFile[]>([]);
   const [readyImage, setImage] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const imglyConfig: Config = {
+    progress: (key: string, current: number, total: number) => {
+      console.log(`Downloading ${key}: ${current} of ${total}`);
+    },
+  };
 
   const removeBackground = (acceptedFiles: ImageSource[]) => {
     console.log('acceptedFiles', acceptedFiles);
     console.log('Running imglyRemoveBackground...');
+    setIsLoading(true);
+
+    // track how long it takes to remove the background
+    const startTime = new Date().getTime();
+
     // run imglyRemoveBackground. after the background has been removed, return the result
-    imglyRemoveBackground(acceptedFiles[0])
+    imglyRemoveBackground(acceptedFiles[0], imglyConfig)
       .then((blob: Blob) => {
         // The result is a blob encoded as PNG. It can be converted to an URL to be used as HTMLImage.src
         console.log('got blob', blob);
         const url = URL.createObjectURL(blob);
         console.log('url is', url);
         setImage(url);
+        setIsLoading(false);
+
+        // calculate how long it took to remove the background
+        const endTime = new Date().getTime();
+        const timeDiff = endTime - startTime; //in ms
+        // strip the ms
+        const seconds = Math.round(timeDiff / 1000);
+
+        console.log(`Background removal finished in ${seconds} seconds`);
         return url;
       })
       .catch((error: any) => {
         console.log('error', error);
+        setIsLoading(false);
       });
   };
 
@@ -66,17 +93,15 @@ function App() {
   });
 
   const thumbs = files.map((file) => (
-    <div key={file.name}>
-      <div>
-        <img
-          src={file.preview}
-          // Revoke data uri after image is loaded
-          onLoad={() => {
-            URL.revokeObjectURL(file.preview);
-          }}
-        />
-      </div>
-    </div>
+    <Card key={file.name}>
+      <img
+        src={file.preview}
+        // Revoke data uri after image is loaded
+        onLoad={() => {
+          URL.revokeObjectURL(file.preview);
+        }}
+      />
+    </Card>
   ));
 
   useEffect(() => {
@@ -90,7 +115,7 @@ function App() {
         <div className="container mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="hidden w-full text-gray-600 md:flex md:items-center">
-              <div className="text-gray-700 md:text-center text-2xl font-semibold">ClearCut</div>
+              <h1 className="text-gray-700 md:text-center text-2xl font-semibold">ClearCut</h1>
             </div>
             <div className="flex items-center justify-end w-full">An in-browser AI background removal tool.</div>
           </div>
@@ -102,21 +127,39 @@ function App() {
           <div className="container mx-auto">
             <section className="border border-dashed border-gray-500 relative rounded-md">
               {/* <section className="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm"> */}
-              <div className="text-center p-10  m-auto cursor-pointer">
-                <div {...getRootProps({ className: 'dropzone' })}>
-                  <input {...getInputProps()} />
-                  <p>Drag 'n' drop some files here, or click to select files</p>
-                </div>
+              <div {...getRootProps({ className: 'dropzone text-center p-10 m-auto cursor-pointer' })}>
+                <input {...getInputProps()} />
+                <p>Drag 'n' drop some files here, or click to select files</p>
               </div>
             </section>
-            {thumbs}
-            {readyImage && (
-              <Card>
+
+            {/* TODO: Figure out how to change the tab programmatically. */}
+            <Tabs defaultValue="original">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="original">Original</TabsTrigger>
+                <TabsTrigger value="removed" disabled={!readyImage}>
+                  Removed background
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="original">{thumbs}</TabsContent>
+              <TabsContent value="removed">
+                {readyImage && (
+                  <Card className="bg-gradient-to-r from-purple-500 to-pink-500">
+                    <aside>
+                      <img src={readyImage} alt="Image with its background removed by ClearCut" />
+                    </aside>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
+            {/* {thumbs} */}
+            {/* {readyImage && (
+              <Card className="bg-gradient-to-r from-purple-500 to-pink-500">
                 <aside>
                   <img src={readyImage} alt="Rendered Image" />
                 </aside>
               </Card>
-            )}
+            )} */}
           </div>
         </>
         <Button
@@ -124,7 +167,9 @@ function App() {
           onClick={() => {
             removeBackground(files);
           }}
+          disabled={isLoading || !files.length}
         >
+          {isLoading && <img className="mr-2 h-4 w-4" src="/images/spinner.gif" alt="Loading" />}
           Remove background
         </Button>
         {readyImage && (
@@ -134,6 +179,7 @@ function App() {
               handleDownload();
             }}
           >
+            <Download className="mr-2 h-4 w-4" />
             Download
           </Button>
         )}
