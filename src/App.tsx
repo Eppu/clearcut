@@ -18,8 +18,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { Download } from 'lucide-react';
-import React from 'react';
+import { Download, Loader2, SquareSlash } from 'lucide-react';
 
 // extend File interface with preview
 interface ExtendedFile extends File {
@@ -28,8 +27,18 @@ interface ExtendedFile extends File {
 
 function App() {
   const [files, setFiles] = useState<ExtendedFile[]>([]);
-  const [readyImage, setImage] = useState<string>('');
+  const [readyImage, setReadyImage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Focus "Removed background tab" when image processing is done
+  useEffect(() => {
+    if (buttonRef.current) {
+      console.log('buttonRef.current', buttonRef.current);
+      buttonRef.current.focus();
+    }
+  }, [readyImage]);
 
   const imglyConfig: Config = {
     progress: (key: string, current: number, total: number) => {
@@ -49,10 +58,9 @@ function App() {
     imglyRemoveBackground(acceptedFiles[0], imglyConfig)
       .then((blob: Blob) => {
         // The result is a blob encoded as PNG. It can be converted to an URL to be used as HTMLImage.src
-        console.log('got blob', blob);
         const url = URL.createObjectURL(blob);
-        console.log('url is', url);
-        setImage(url);
+        setReadyImage(url);
+
         setIsLoading(false);
 
         // calculate how long it took to remove the background
@@ -80,7 +88,7 @@ function App() {
 
   const { getRootProps, getInputProps } = useDropzone({
     accept: { 'image/*': [] },
-    // onDrop,
+    multiple: false,
     onDrop: (acceptedFiles) => {
       setFiles(
         acceptedFiles.map((file) =>
@@ -93,14 +101,17 @@ function App() {
   });
 
   const thumbs = files.map((file) => (
-    <Card key={file.name}>
-      <img
-        src={file.preview}
-        // Revoke data uri after image is loaded
-        onLoad={() => {
-          URL.revokeObjectURL(file.preview);
-        }}
-      />
+    <Card key={file.name} className="justify-center items-center flex flex-col">
+      <CardContent>
+        <img
+          className="max-w-[1000px] max-h-[1000px]"
+          src={file.preview}
+          // Revoke data uri after image is loaded
+          onLoad={() => {
+            URL.revokeObjectURL(file.preview);
+          }}
+        />
+      </CardContent>
     </Card>
   ));
 
@@ -133,43 +144,40 @@ function App() {
               </div>
             </section>
 
-            {/* TODO: Figure out how to change the tab programmatically. */}
             <Tabs defaultValue="original">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="original">Original</TabsTrigger>
-                <TabsTrigger value="removed" disabled={!readyImage}>
+                <TabsTrigger value="removed" disabled={!readyImage} ref={buttonRef}>
                   Removed background
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="original">{thumbs}</TabsContent>
               <TabsContent value="removed">
                 {readyImage && (
-                  <Card className="bg-gradient-to-r from-purple-500 to-pink-500">
-                    <aside>
-                      <img src={readyImage} alt="Image with its background removed by ClearCut" />
-                    </aside>
+                  <Card className="bg-gradient-to-r from-purple-500 to-pink-500 justify-center items-center flex flex-col ">
+                    <CardContent>
+                      <img
+                        className="max-w-[1000px] max-h-[1000px]"
+                        src={readyImage}
+                        alt="Image with its background removed by ClearCut"
+                      />
+                    </CardContent>
                   </Card>
                 )}
               </TabsContent>
             </Tabs>
-            {/* {thumbs} */}
-            {/* {readyImage && (
-              <Card className="bg-gradient-to-r from-purple-500 to-pink-500">
-                <aside>
-                  <img src={readyImage} alt="Rendered Image" />
-                </aside>
-              </Card>
-            )} */}
           </div>
         </>
         <Button
-          variant={'outline'}
+          // variant={'outline'}
           onClick={() => {
             removeBackground(files);
           }}
           disabled={isLoading || !files.length}
+          className="px-4 py-2 m-4 h4"
         >
-          {isLoading && <img className="mr-2 h-4 w-4" src="/images/spinner.gif" alt="Loading" />}
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {!isLoading && <SquareSlash className="mr-2 h-4 w-4" />}
           Remove background
         </Button>
         {readyImage && (
@@ -178,6 +186,7 @@ function App() {
             onClick={() => {
               handleDownload();
             }}
+            className="px-4 py-2 m-4"
           >
             <Download className="mr-2 h-4 w-4" />
             Download
