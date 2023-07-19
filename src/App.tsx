@@ -29,6 +29,7 @@ function App() {
   const [files, setFiles] = useState<ExtendedFile[]>([]);
   const [readyImage, setReadyImage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadingStatusMessage, setLoadingStatusMessage] = useState<string>('');
 
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -42,7 +43,27 @@ function App() {
 
   const imglyConfig: Config = {
     progress: (key: string, current: number, total: number) => {
-      console.log(`Downloading ${key}: ${current} of ${total}`);
+      const fetchMessage = 'Downloading model';
+      const computeMessage = 'Processing image';
+      if (
+        key === 'fetch:medium' ||
+        key === 'fetch:ort-wasm-simd-threaded.wasm' ||
+        key === 'fetch:ort-wasm-simd.wasm' ||
+        key === 'fetch:ort-wasm-threaded.wasm' ||
+        key === 'fetch:ort-wasm.wasm'
+      ) {
+        loadingStatusMessage !== fetchMessage && setLoadingStatusMessage(fetchMessage);
+        return;
+      }
+
+      if (key === 'compute:inference') {
+        console.log('key is compute');
+        if (current === total) {
+          setLoadingStatusMessage('');
+          return;
+        }
+        setLoadingStatusMessage(computeMessage);
+      }
     },
   };
 
@@ -60,7 +81,6 @@ function App() {
         // The result is a blob encoded as PNG. It can be converted to an URL to be used as HTMLImage.src
         const url = URL.createObjectURL(blob);
         setReadyImage(url);
-
         setIsLoading(false);
 
         // calculate how long it took to remove the background
@@ -103,14 +123,25 @@ function App() {
   const thumbs = files.map((file) => (
     <Card key={file.name} className="justify-center items-center flex flex-col">
       <CardContent>
-        <img
-          className="max-w-[1000px] max-h-[1000px]"
-          src={file.preview}
-          // Revoke data uri after image is loaded
-          onLoad={() => {
-            URL.revokeObjectURL(file.preview);
-          }}
-        />
+        {/* create a full width and height div with grey transparent background */}
+        <div className="relative">
+          <div className={isLoading ? 'absolute inset-0 bg-gray-200 opacity-50' : ''}>
+            {isLoading && (
+              <div className="flex items-center justify-center h-full w-full">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <p className="ml-2 scroll-m-20 text-2xl font-semibold tracking-tight">{loadingStatusMessage}</p>
+              </div>
+            )}
+          </div>
+          <img
+            className="max-w-[1000px] max-h-[750px]"
+            src={file.preview}
+            // Revoke data uri after image is loaded
+            onLoad={() => {
+              URL.revokeObjectURL(file.preview);
+            }}
+          />
+        </div>
       </CardContent>
     </Card>
   ));
@@ -132,7 +163,6 @@ function App() {
           </div>
         </div>
       </header>
-
       <main className="my-8">
         <>
           <div className="container mx-auto">
@@ -157,7 +187,7 @@ function App() {
                   <Card className="bg-gradient-to-r from-purple-500 to-pink-500 justify-center items-center flex flex-col ">
                     <CardContent>
                       <img
-                        className="max-w-[1000px] max-h-[1000px]"
+                        className="max-w-[1000px] max-h-[750px]"
                         src={readyImage}
                         alt="Image with its background removed by ClearCut"
                       />
