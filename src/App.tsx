@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { Download, Loader2, SquareSlash } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
+
 // extend File interface with preview
 interface ExtendedFile extends File {
   preview: string;
@@ -160,6 +162,7 @@ function App() {
               {/* <section className="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm"> */}
               <div {...getRootProps({ className: 'dropzone text-center p-10 m-auto cursor-pointer' })}>
                 <input {...getInputProps()} />
+                {/* TODO: Make thumbs act as dropzone if file is selected. Also add a removal button. */}
                 <p>Drag 'n' drop some files here, or click to select files</p>
               </div>
             </section>
@@ -189,7 +192,6 @@ function App() {
           </div>
         </>
         <Button
-          // variant={'outline'}
           onClick={() => {
             removeBackground(files);
           }}
@@ -213,6 +215,19 @@ function App() {
           </Button>
         )}
       </main>
+
+      <footer className="my-8 container mx-auto mt-auto">
+        <Card>
+          <div className="w-full mx-auto max-w-screen-xl p-4 md:flex md:items-center md:justify-between">
+            <span className="text-sm text-gray-500 sm:text-center dark:text-gray-400">
+              Built in 2023 by{' '}
+              <a href="https://eetueskelinen.com/" target="_blank" rel="noopener noreferrer">
+                <Badge variant="secondary">Eetu Eskelinen</Badge>
+              </a>
+            </span>
+          </div>
+        </Card>
+      </footer>
     </>
   );
 }
