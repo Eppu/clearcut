@@ -3,16 +3,11 @@ import { useDropzone } from 'react-dropzone';
 import './App.css';
 import imglyRemoveBackground, { ImageSource, Config } from '@imgly/background-removal';
 import { Button } from '@/components/ui/button';
-
 import { Card, CardContent } from '@/components/ui/card';
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
 import { Download, Loader2, SquareSlash } from 'lucide-react';
-
 import { Badge } from '@/components/ui/badge';
 
-// extend File interface with preview
 interface ExtendedFile extends File {
   preview: string;
 }
@@ -23,15 +18,22 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingStatusMessage, setLoadingStatusMessage] = useState<string>('');
 
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const removedBackgroundButtonRef = useRef<HTMLButtonElement>(null);
+  const originalButtonRef = useRef<HTMLButtonElement>(null);
 
   // Focus "Removed background tab" when image processing is done
   useEffect(() => {
-    if (buttonRef.current) {
-      console.log('buttonRef.current', buttonRef.current);
-      buttonRef.current.focus();
+    if (removedBackgroundButtonRef.current) {
+      removedBackgroundButtonRef.current.focus();
     }
   }, [readyImage]);
+
+  // Focus "Original tab" when image is dropped
+  useEffect(() => {
+    if (originalButtonRef.current) {
+      originalButtonRef.current.focus();
+    }
+  }, [files]);
 
   const imglyConfig: Config = {
     progress: (key: string, current: number, total: number) => {
@@ -49,7 +51,6 @@ function App() {
       }
 
       if (key === 'compute:inference') {
-        console.log('key is compute');
         if (current === total) {
           setLoadingStatusMessage('');
           return;
@@ -60,14 +61,12 @@ function App() {
   };
 
   const removeBackground = (acceptedFiles: ImageSource[]) => {
-    console.log('acceptedFiles', acceptedFiles);
-    console.log('Running imglyRemoveBackground...');
+    console.log('Running background removal job...');
     setIsLoading(true);
 
     // track how long it takes to remove the background
-    const startTime = new Date().getTime();
+    // const startTime = new Date().getTime();
 
-    // run imglyRemoveBackground. after the background has been removed, return the result
     imglyRemoveBackground(acceptedFiles[0], imglyConfig)
       .then((blob: Blob) => {
         // The result is a blob encoded as PNG. It can be converted to an URL to be used as HTMLImage.src
@@ -76,22 +75,21 @@ function App() {
         setIsLoading(false);
 
         // calculate how long it took to remove the background
-        const endTime = new Date().getTime();
-        const timeDiff = endTime - startTime; //in ms
-        // strip the ms
-        const seconds = Math.round(timeDiff / 1000);
+        // const endTime = new Date().getTime();
+        // const timeDiff = endTime - startTime; //in ms
+        // // strip the ms
+        // const seconds = Math.round(timeDiff / 1000);
+        // console.log(`Background removal finished in ${seconds} seconds`);
 
-        console.log(`Background removal finished in ${seconds} seconds`);
         return url;
       })
-      .catch((error: any) => {
+      .catch((error: string) => {
         console.log('error', error);
         setIsLoading(false);
       });
   };
 
   const handleDownload = () => {
-    // Create a temporary link element
     const link = document.createElement('a');
     link.href = readyImage;
     link.download = files[0].name.split('.')[0] + '_clearcut.png';
@@ -115,7 +113,6 @@ function App() {
   const thumbs = files.map((file) => (
     <Card key={file.name} className="justify-center items-center flex flex-col">
       <CardContent>
-        {/* create a full width and height div with grey transparent background */}
         <div className="relative">
           <div className={isLoading ? 'absolute inset-0 bg-gray-200 opacity-50' : ''}>
             {isLoading && (
@@ -159,18 +156,19 @@ function App() {
         <>
           <div className="container mx-auto">
             <section className="border border-dashed border-gray-500 relative rounded-md">
-              {/* <section className="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm"> */}
               <div {...getRootProps({ className: 'dropzone text-center p-10 m-auto cursor-pointer' })}>
                 <input {...getInputProps()} />
                 {/* TODO: Make thumbs act as dropzone if file is selected. Also add a removal button. */}
-                <p>Drag 'n' drop some files here, or click to select files</p>
+                <p>Drag and drop an image file, or click to select a file</p>
               </div>
             </section>
 
             <Tabs defaultValue="original">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="original">Original</TabsTrigger>
-                <TabsTrigger value="removed" disabled={!readyImage} ref={buttonRef}>
+                <TabsTrigger value="original" ref={originalButtonRef}>
+                  Original
+                </TabsTrigger>
+                <TabsTrigger value="removed" disabled={!readyImage} ref={removedBackgroundButtonRef}>
                   Removed background
                 </TabsTrigger>
               </TabsList>
