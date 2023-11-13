@@ -4,6 +4,8 @@ Clearcut is a POC web app that uses AI to remove backgrounds from images. The ap
 
 [Demo](https://eppu.github.io/clearcut)
 
+Keep in mind that when using solutions like this, the processing speed is dependent on the device you're using.
+
 ### Getting started
 
 ```bash
